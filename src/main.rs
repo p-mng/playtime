@@ -5,7 +5,7 @@ use clap::Parser;
 use colored::Colorize;
 use config::{App, Config, Session};
 use error::Error;
-use jiff::{Span, Unit, Zoned};
+use jiff::{Span, SpanRound, Unit, Zoned};
 
 mod args;
 mod config;
@@ -69,8 +69,8 @@ fn list(config: Config) -> Result<(), Error> {
 
         println!("{}", app.name.blue());
         println!(" executable: {}", app.exe.cyan());
-        println!(" recorded total: {}", format_span(&total).cyan());
-        println!(" recorded recently: {}", format_span(&recent).cyan());
+        println!(" recorded total: {}", format_span(&total)?.cyan());
+        println!(" recorded recently: {}", format_span(&recent)?.cyan());
     }
 
     Ok(())
@@ -99,7 +99,7 @@ fn start(mut config: Config, name: String) -> Result<(), Error> {
 
         Ok(())
     } else {
-        println!("session duration: {}", format_span(&duration).blue());
+        println!("session duration: {}", format_span(&duration)?.blue());
 
         app.sessions.push(Session {
             timestamp: start,
@@ -124,7 +124,7 @@ fn sessions(config: Config, name: String) -> Result<(), Error> {
 
     for session in app.sessions.iter() {
         let timestamp = format_zoned(&session.timestamp);
-        let duration = format_span(&session.duration);
+        let duration = format_span(&session.duration)?;
         println!(" played on {} for {}", timestamp.blue(), duration.blue());
     }
 
@@ -132,13 +132,33 @@ fn sessions(config: Config, name: String) -> Result<(), Error> {
 }
 
 fn format_zoned(zoned: &Zoned) -> String {
-    zoned.strftime("%Y-%m-%d at %H:%S %Z").to_string()
+    zoned.strftime("%Y-%m-%d at %H:%M %Z").to_string()
 }
 
-fn format_span(span: &Span) -> String {
-    let h = span.get_hours();
-    let m = span.get_minutes();
-    let s = span.get_seconds();
+fn format_span(span: &Span) -> Result<String, Error> {
+    let rounded = span.round(SpanRound::new().largest(Unit::Hour))?;
+    let h = rounded.get_hours();
+    let m = rounded.get_minutes();
+    let s = rounded.get_seconds();
 
-    format!("{:02}h {:02}m {:02}s", h, m, s)
+    Ok(format!("{:02}h {:02}m {:02}s", h, m, s))
+}
+
+#[cfg(test)]
+mod tests {
+    use std::str::FromStr;
+
+    use super::*;
+
+    #[test]
+    fn test_format_zoned() {
+        let zoned = Zoned::from_str("2024-08-10T23:14:00-04:00[America/New_York]").unwrap();
+        assert_eq!(format_zoned(&zoned), "2024-08-10 at 23:14 EDT".to_string());
+    }
+
+    #[test]
+    fn test_format_span() {
+        let span = Span::new().minutes(124);
+        assert_eq!(format_span(&span).unwrap(), "02h 04m 00s".to_string());
+    }
 }
