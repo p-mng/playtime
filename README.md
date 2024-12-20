@@ -16,4 +16,4 @@ A simple, cross-platform, privacy-oriented time tracker for the command line.
 ## Installation
 
 - Download the Rust programming language: <https://www.rust-lang.org/tools/install>
-- Install using `cargo install --path .`
+- Install using `cargo install --git https://github.com/p-mng/playtime.git --tag v0.1.1`
